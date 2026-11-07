@@ -1,0 +1,39 @@
+name: Auth Android debug build
+on:
+  push:
+    branches: [codex/auth-recents-build]
+    paths:
+      - 'mobile/apps/auth/android/app/src/main/kotlin/io/ente/authenticator/MainActivity.kt'
+      - '.github/workflows/codex-auth-debug.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+      - uses: ./.github/actions/setup-flutter
+      - name: Install dependencies
+        working-directory: mobile
+        run: flutter pub get --enforce-lockfile
+      - name: Generate Rust bindings
+        working-directory: rust
+        run: cargo codegen frb auth
+      - name: Build isolated debug APK
+        working-directory: mobile/apps/auth
+        run: flutter build apk --debug --flavor independent --target-platform android-arm64
+      - name: Upload APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: ente-auth-recents-debug-arm64
+          path: mobile/apps/auth/build/app/outputs/flutter-apk/app-independent-debug.apk
+          if-no-files-found: error
+          retention-days: 14
